@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Producción</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f6f9; --surface: #ffffff; --border: #d0d7e2;
+    --text: #1a1f2e; --muted: #6b7280; --accent: #2563eb;
+    --red: #dc2626; --yellow: #d97706; --green: #16a34a;
+    --red-dim: rgba(220,38,38,0.1); --yellow-dim: rgba(217,119,6,0.1); --green-dim: rgba(22,163,74,0.1);
+    --madera: #92400e; --madera-bg: #fef3c7;
+    --acero: #1e40af; --acero-bg: #dbeafe;
+    --ensamble: #065f46; --ensamble-bg: #d1fae5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 24px 20px 48px; }
+  header { display: flex; align-items: flex-end; gap: 18px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 18px; }
+  header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem; letter-spacing: 2px; color: var(--text); line-height: 1; }
+  header span { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .legend-bar { display: flex; gap: 18px; margin-left: auto; align-items: center; flex-wrap: wrap; }
+  .leg-item { display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 700; color: var(--text); }
+  .leg-dot { width: 13px; height: 13px; border-radius: 3px; }
+  .dropdown { position: relative; display: inline-block; }
+  .dropdown-menu { display: none; position: absolute; top: 110%; left: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100; min-width: 160px; overflow: hidden; }
+  .dropdown-menu.open { display: block; }
+  .dropdown-item { padding: 10px 16px; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 600; color: var(--text); cursor: pointer; transition: background 0.15s; }
+  .dropdown-item:hover { background: var(--surface2); color: var(--accent); }
+  .dropdown-item.active { background: var(--accent); color: #ffffff; }
+  .phase-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 6px 16px; border-radius: 20px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 500; transition: all 0.2s; }
+  .phase-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .phase-btn.active { background: var(--accent); border-color: var(--accent); color: #ffffff; font-weight: 600; }
+  .phase-section { margin-bottom: 28px; }
+  .phase-header { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 2px; color: var(--text); padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .familia-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .familia-full { width: 100%; margin-bottom: 14px; }
+  .fam-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); position: relative; overflow: hidden; }
+  .fam-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .fam-card.madera::before  { background: var(--madera); }
+  .fam-card.acero::before   { background: var(--acero); }
+  .fam-card.ensamble::before { background: var(--ensamble); }
+  .fam-label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; margin-bottom: 10px; }
+  .fam-label.madera  { background: var(--madera-bg);  color: var(--madera); }
+  .fam-label.acero   { background: var(--acero-bg);   color: var(--acero); }
+  .fam-label.ensamble { background: var(--ensamble-bg); color: var(--ensamble); }
+  .chart-title { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text); font-weight: 700; margin-bottom: 6px; margin-top: 12px; }
+  .chart-wrap { position: relative; height: 260px; }
+  .chart-wrap.atraso { height: 200px; }
+  .semaphore-legend { display: flex; gap: 10px; margin-top: 8px; justify-content: flex-end; }
+  .sem-r { background: var(--red-dim); color: var(--red); font-size: 0.85rem; padding: 4px 12px; border-radius: 20px; font-weight: 700; }
+  .sem-y { background: var(--yellow-dim); color: var(--yellow); font-size: 0.85rem; padding: 4px 12px; border-radius: 20px; font-weight: 700; }
+  .sem-g { background: var(--green-dim); color: var(--green); font-size: 0.85rem; padding: 4px 12px; border-radius: 20px; font-weight: 700; }
+  @media (max-width: 720px) { .familia-row { grid-template-columns: 1fr; } header { flex-direction: column; align-items: flex-start; } .legend-bar { margin-left: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <span>Reporte diario</span>
+    <h1>Dashboard de Producción</h1>
+  </div>
+  <div class="legend-bar">
+    <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div> &gt;100% — Sobrecarga</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--yellow)"></div> 90–100% — Alerta</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div> ≤89% — Normal</div>
+  </div>
+</header>
+<div class="controls" style="margin-bottom:28px;">
+  <button id="minimizeBtn" class="phase-btn" style="border-color:#6b7280; color:#6b7280; font-weight:600; white-space:nowrap;">— Minimizar</button>
+  <div class="dropdown">
+    <button id="fasesBtn" class="phase-btn" style="font-weight:600; border-color:#2563eb; color:#2563eb;">📅 Fases ▾</button>
+    <div class="dropdown-menu" id="fasesMenu">
+      <div class="dropdown-item active" data-fase="todas">Todas las Fases</div>
+      <div class="dropdown-item" data-fase="Fase 1">Fase 1 — 18 may</div>
+      <div class="dropdown-item" data-fase="Fase 2">Fase 2 — 15 may</div>
+      <div class="dropdown-item" data-fase="Fase 3">Fase 3 — 14 may</div>
+      <div class="dropdown-item" data-fase="Fase 4">Fase 4 — 13 may</div>
+      <div class="dropdown-item" data-fase="Fase 4: Sillas">Fase 4: Sillas y Sillones</div>
+    </div>
+  </div>
+  <span style="font-size:0.8rem; font-weight:700; color:#6b7280; white-space:nowrap; margin-left:8px;">Ver:</span>
+  <button id="btnPieza"  class="phase-btn active" style="border-color:#2563eb; color:#ffffff; background:#2563eb; font-weight:600;">① Cap. Pieza Real</button>
+  <button id="btnTiempo" class="phase-btn" style="font-weight:600;">② Cap. Tiempo</button>
+  <button id="btnAtraso" class="phase-btn" style="font-weight:600;">③ Atrasos</button>
+</div>
+<div id="dashboard"></div>
+<script>
+// ─── DATA ──────────────────────────────────────────────────────────────────
+const phases = {
+  "Fase 1 — 18 may": [
+    { ct: "CAR. CORTE",     capTiempo: 19.75, tReal: 14.87, atrasos: 0,   pctAtraso: 0.0,  piezaReal: 1020, capInstalada: 1279, pctPiezaTabla: 79.7,  pctTiempoTabla: 75.3  },
+    { ct: "LASER MUEBLES",  capTiempo: 15.16, tReal: 7.77,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 372,  capInstalada: 624,  pctPiezaTabla: 69.6,  pctTiempoTabla: 51.3  },
+    { ct: "TROQUELES",      capTiempo: 7.58,  tReal: 6.15,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 1081, capInstalada: 1450, pctPiezaTabla: 74.6,  pctTiempoTabla: 81.1  },
+  ],
+  "Fase 2 — 15 may": [
+    { ct: "ENCHAPADO",      capTiempo: 21.77, tReal: 8.83,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 702,  capInstalada: 1284, pctPiezaTabla: 54.7,  pctTiempoTabla: 40.6  },
+    { ct: "EST. MAMPARAS",  capTiempo: 7.58,  tReal: 1.68,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 46,   capInstalada: 222,  pctPiezaTabla: 20.7,  pctTiempoTabla: 22.2  },
+    { ct: "EST. SILLAS",    capTiempo: 7.58,  tReal: 5.28,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 100,  capInstalada: 480,  pctPiezaTabla: 20.8,  pctTiempoTabla: 69.7  },
+    { ct: "EST. MUEBLES",   capTiempo: 14.80, tReal: 13.09, atrasos: 15,  pctAtraso: 3.1,  piezaReal: 472,  capInstalada: 768,  pctPiezaTabla: 61.5,  pctTiempoTabla: 88.4  },
+  ],
+  "Fase 3 — 14 may": [
+    { ct: "CAJAS",          capTiempo: 7.58,  tReal: 4.55,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 206,  capInstalada: 696,  pctPiezaTabla: 28.6,  pctTiempoTabla: 60.0  },
+    { ct: "HAB. MADERA",    capTiempo: 15.16, tReal: 4.95,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 162,  capInstalada: 242,  pctPiezaTabla: 66.9,  pctTiempoTabla: 32.7  },
+    { ct: "PINTURA",        capTiempo: 7.17,  tReal: 4.40,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 782,  capInstalada: 1216, pctPiezaTabla: 64.3,  pctTiempoTabla: 61.3  },
+    { ct: "TELAS",          capTiempo: 7.50,  tReal: 0.57,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 6,    capInstalada: 480,  pctPiezaTabla: 1.3,   pctTiempoTabla: 7.6   },
+  ],
+  "Fase 4 — 13 may": [
+    { ct: "ENS. MUEBLES",   capTiempo: 7.58,  tReal: 4.80,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 63,   capInstalada: 312,  pctPiezaTabla: 20.2,  pctTiempoTabla: 63.3  },
+    { ct: "ENS. LIBREROS",  capTiempo: 15.16, tReal: 3.21,  atrasos: 22,  pctAtraso: 73.3, piezaReal: 8,    capInstalada: 30,   pctPiezaTabla: 26.7,  pctTiempoTabla: 21.2  },
+    { ct: "ENS. MAMPARAS",  capTiempo: 7.58,  tReal: 2.33,  atrasos: 3,   pctAtraso: 21.4, piezaReal: 11,   capInstalada: 82,   pctPiezaTabla: 13.4,  pctTiempoTabla: 30.7  },
+    { ct: "ENS. ARCHIVEROS",capTiempo: 7.58,  tReal: 4.97,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 60,   capInstalada: 87,   pctPiezaTabla: 69.0,  pctTiempoTabla: 65.5  },
+  ],
+  "Fase 4: Sillas y Sillones — 13 may": [
+    { ct: "ENS. SILLAS",    capTiempo: 7.58,  tReal: 1.85,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 166,  capInstalada: 453,  pctPiezaTabla: 36.6,  pctTiempoTabla: 24.4  },
+    { ct: "ENS. SILLONES",  capTiempo: 7.58,  tReal: 1.79,  atrasos: 0,   pctAtraso: 0.0,  piezaReal: 6,    capInstalada: 15,   pctPiezaTabla: 40.0,  pctTiempoTabla: 23.6  },
+  ],
+};
+
+// ─── FAMILY MAPPING PER PHASE ──────────────────────────────────────────────
+const familiasPorFase = {
+  "Fase 1 — 18 may": { madera: ["CAR. CORTE"], acero: ["TROQUELES", "LASER MUEBLES"] },
+  "Fase 2 — 15 may": { madera: ["ENCHAPADO"],  acero: ["EST. MUEBLES", "EST. SILLAS", "EST. MAMPARAS"] },
+  "Fase 3 — 14 may": { madera: ["HAB. MADERA", "CAJAS"], acero: ["PINTURA", "TELAS"] },
+  "Fase 4 — 13 may": { madera: [], acero: [] },
+  "Fase 4: Sillas y Sillones — 13 may": { madera: [], acero: [] },
+};
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────
+const RED='#dc2626', YELLOW='#d97706', GREEN='#16a34a', ACCENT='#2563eb', ACCENT2='#3b82f6';
+function semColor(p){ return p>100?RED:p>=90?YELLOW:GREEN; }
+function semColorAlpha(p,a=0.75){ return semColor(p)+Math.round(a*255).toString(16).padStart(2,'0'); }
+function atrasoColor(p){ return p>50?RED:p>=1?YELLOW:GREEN; }
+function atrasoColorAlpha(p,a=0.75){ return atrasoColor(p)+Math.round(a*255).toString(16).padStart(2,'0'); }
+
+let labelsVisible=true, isMinimized=false, allCharts=[], cardCount=0;
+Chart.register(ChartDataLabels);
+
+const baseScales = {
+  x: { ticks: { color: '#1a1f2e', font: { family:'DM Sans', size:13, weight:'700' }, maxRotation:30 }, grid: { color:'rgba(208,215,226,0.6)' } },
+  y: { ticks: { color: '#6b7280', font: { family:'DM Sans', size:10 } }, grid: { color:'rgba(208,215,226,0.6)' } }
+};
+const dlBase = { color:'#000000', font:{ family:'DM Sans', size:11, weight:'700' }, clip:false, display:true, anchor:'end', align:'end' };
+const tooltipBase = { backgroundColor:'#ffffff', borderColor:'#d0d7e2', borderWidth:1, titleColor:'#1a1f2e', bodyColor:'#6b7280', padding:10 };
+
+function buildCapPieza(id, data) {
+  const pct = data.map(d=>d.pctPiezaTabla);
+  const c = new Chart(document.getElementById(id), {
+    type:'bar',
+    data:{ labels:data.map(d=>d.ct), datasets:[
+      { label:'Cap. Instalada', data:data.map(d=>d.capInstalada), backgroundColor:'rgba(37,99,235,0.12)', borderColor:ACCENT, borderWidth:1.5, borderRadius:4, order:2,
+        datalabels:{ display:true, anchor:'end', align:'end', color:'#000000', font:{family:'DM Sans',size:11,weight:'700'}, formatter:v=>v } },
+      { label:'Pieza Real', data:data.map(d=>d.piezaReal), backgroundColor:pct.map(p=>semColorAlpha(p,0.75)), borderColor:pct.map(p=>semColor(p)), borderWidth:1.5, borderRadius:4, order:1,
+        datalabels:{ display:true, anchor:'end', align:'end', color:'#000000', font:{family:'DM Sans',size:11,weight:'700'}, formatter:v=>v } }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:35}},
+      plugins:{
+        legend:{display:true, position:'top', align:'center', labels:{color:'#1a1f2e', font:{family:'DM Sans',size:12,weight:'700'}, boxWidth:12}},
+        tooltip:{ backgroundColor:'#ffffff', borderColor:'#d0d7e2', borderWidth:1, titleColor:'#1a1f2e', bodyColor:'#6b7280', padding:10,
+          callbacks:{ label: ctx => ctx.datasetIndex===1 ? ` Pieza Real: ${ctx.raw}  |  % Utilización: ${pct[ctx.dataIndex].toFixed(1)}%` : ` Cap. Instalada: ${ctx.raw}` }
+        }
+      },
+      scales:baseScales }
+  });
+  allCharts.push(c); return c;
+}
+
+function buildCapTiempo(id, data) {
+  const pct = data.map(d=>d.pctTiempoTabla);
+  const c = new Chart(document.getElementById(id), {
+    type:'bar',
+    data:{ labels:data.map(d=>d.ct), datasets:[
+      { label:'Cap. Tiempo', data:data.map(d=>d.capTiempo), backgroundColor:'rgba(37,99,235,0.12)', borderColor:ACCENT2, borderWidth:1.5, borderRadius:4, order:2,
+        datalabels:{ display:true, anchor:'end', align:'end', color:'#000000', font:{family:'DM Sans',size:11,weight:'700'}, formatter:v=>v+' h' } },
+      { label:'T. Real', data:data.map(d=>d.tReal), backgroundColor:pct.map(p=>semColorAlpha(p,0.75)), borderColor:pct.map(p=>semColor(p)), borderWidth:1.5, borderRadius:4, order:1,
+        datalabels:{ display:true, anchor:'end', align:'end', color:'#000000', font:{family:'DM Sans',size:11,weight:'700'}, formatter:v=>v+' h' } }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:35}},
+      plugins:{
+        legend:{display:true, position:'top', align:'center', labels:{color:'#1a1f2e', font:{family:'DM Sans',size:12,weight:'700'}, boxWidth:12}},
+        tooltip:{ backgroundColor:'#ffffff', borderColor:'#d0d7e2', borderWidth:1, titleColor:'#1a1f2e', bodyColor:'#6b7280', padding:10,
+          callbacks:{ label: ctx => ctx.datasetIndex===1 ? ` T. Real: ${ctx.raw} h  |  % Utilización: ${pct[ctx.dataIndex].toFixed(1)}%` : ` Cap. Tiempo: ${ctx.raw} h` }
+        }
+      },
+      scales:baseScales }
+  });
+  allCharts.push(c); return c;
+}
+
+function buildAtraso(id, data) {
+  const c = new Chart(document.getElementById(id), {
+    type:'bar',
+    data:{ labels:data.map(d=>d.ct), datasets:[{
+      label:'Atrasos (pzs)', data:data.map(d=>d.atrasos),
+      backgroundColor:data.map(d=>atrasoColorAlpha(d.pctAtraso,0.2)), borderColor:data.map(d=>atrasoColor(d.pctAtraso)), borderWidth:1.5, borderRadius:4,
+      datalabels:{ display:true, anchor:'end', align:'end', color:'#000000', font:{family:'DM Sans',size:11,weight:'700'}, formatter:(v,ctx)=>v+' pzs' }
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:35}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{ backgroundColor:'#ffffff', borderColor:'#d0d7e2', borderWidth:1, titleColor:'#1a1f2e', bodyColor:'#6b7280', padding:10,
+          callbacks:{ label: ctx => ` ${ctx.raw} pzs  (${data[ctx.dataIndex].pctAtraso.toFixed(1)}% de atraso)` }
+        }
+      },
+      scales:{ x:baseScales.x, y:{ ticks:{color:'#6b7280', font:{family:'DM Sans',size:10}}, grid:{color:'rgba(208,215,226,0.6)'} } }
+    }
+  });
+  allCharts.push(c); return c;
+}
+
+function renderFamCard(container, famClass, famLabel, data) {
+  if (!data || data.length === 0) { container.appendChild(document.createElement('div')); return; }
+  cardCount++;
+  const i1=`cp${cardCount}`, i2=`ct${cardCount}`, i3=`at${cardCount}`;
+  const card = document.createElement('div');
+  card.className = `fam-card ${famClass}`;
+  card.innerHTML = `
+    <div class="fam-label ${famClass}">${famLabel}</div>
+    <div class="chart-title" data-chart="pieza">① Capacidad Instalada vs Pieza Real</div>
+    <div class="chart-wrap" data-chart="pieza"><canvas id="${i1}"></canvas></div>
+    <div class="semaphore-legend" data-chart="pieza"><span class="sem-r">Sobrecarga &gt;100%</span><span class="sem-y">Alerta 90–100%</span><span class="sem-g">Normal ≤89%</span></div>
+    <div class="chart-title" data-chart="tiempo">② Capacidad (Tiempo Horas) vs Tiempo Real</div>
+    <div class="chart-wrap" data-chart="tiempo"><canvas id="${i2}"></canvas></div>
+    <div class="semaphore-legend" data-chart="tiempo"><span class="sem-r">Sobrecarga &gt;100%</span><span class="sem-y">Alerta 90–100%</span><span class="sem-g">Normal ≤89%</span></div>
+    <div class="chart-title" data-chart="atraso">③ Atrasos (piezas)</div>
+    <div class="chart-wrap atraso" data-chart="atraso"><canvas id="${i3}"></canvas></div>
+    <div class="semaphore-legend" data-chart="atraso"><span class="sem-r">Sobrecarga &gt;50%</span><span class="sem-y">Alerta 1–50%</span><span class="sem-g">Normal 0%</span></div>
+  `;
+  container.appendChild(card);
+  setTimeout(() => { buildCapPieza(i1,data); buildCapTiempo(i2,data); buildAtraso(i3,data); }, 0);
+}
+
+function renderDashboard() {
+  allCharts.forEach(c=>c.destroy()); allCharts=[]; cardCount=0;
+  const container = document.getElementById('dashboard');
+  container.innerHTML = '';
+  Object.keys(phases).forEach(phaseKey => {
+    const phaseData = phases[phaseKey];
+    const mapping = familiasPorFase[phaseKey] || { madera:[], acero:[] };
+    const section = document.createElement('div');
+    section.className = 'phase-section';
+    const header = document.createElement('div');
+    header.className = 'phase-header';
+    header.textContent = '📅 ' + phaseKey;
+    section.appendChild(header);
+
+    const maderaData  = (mapping.madera||[]).map(ct=>phaseData.find(d=>d.ct===ct)).filter(Boolean);
+    const aceroData   = (mapping.acero||[]).map(ct=>phaseData.find(d=>d.ct===ct)).filter(Boolean);
+    const ensData     = phaseData.filter(d=>d.ct.startsWith('ENS.'));
+
+    if (maderaData.length > 0 || aceroData.length > 0) {
+      const row = document.createElement('div');
+      row.className = 'familia-row';
+      renderFamCard(row, 'madera', '🪵 Madera', maderaData);
+      renderFamCard(row, 'acero',  '⚙️ Acero',  aceroData);
+      section.appendChild(row);
+    }
+    if (ensData.length > 0) {
+      const full = document.createElement('div');
+      full.className = 'familia-full';
+      renderFamCard(full, 'ensamble', '🔩 Ensambles Finales', ensData);
+      section.appendChild(full);
+    }
+    container.appendChild(section);
+  });
+}
+
+renderDashboard();
+
+// ─── FASES DROPDOWN ────────────────────────────────────────────────────────
+const fasesBtn  = document.getElementById('fasesBtn');
+const fasesMenu = document.getElementById('fasesMenu');
+
+fasesBtn.onclick = (e) => { e.stopPropagation(); fasesMenu.classList.toggle('open'); };
+document.addEventListener('click', () => fasesMenu.classList.remove('open'));
+
+fasesMenu.querySelectorAll('.dropdown-item').forEach(item => {
+  item.onclick = (e) => {
+    e.stopPropagation();
+    const fase = item.getAttribute('data-fase');
+    fasesMenu.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    fasesBtn.textContent = `📅 ${item.textContent} ▾`;
+    fasesMenu.classList.remove('open');
+
+    // Show/hide phase sections
+    document.querySelectorAll('.phase-section').forEach(section => {
+      const header = section.querySelector('.phase-header').textContent;
+      if (fase === 'todas') {
+        section.style.display = '';
+      } else {
+        section.style.display = header.includes(fase) ? '' : 'none';
+      }
+    });
+
+    setTimeout(() => allCharts.forEach(c => c.resize()), 50);
+  };
+});
+
+
+let activeFilter = 'pieza';
+const filterBtns = {
+  pieza:  document.getElementById('btnPieza'),
+  tiempo: document.getElementById('btnTiempo'),
+  atraso: document.getElementById('btnAtraso'),
+};
+
+function applyFilter(filter) {
+  activeFilter = filter;
+  Object.entries(filterBtns).forEach(([key, btn]) => {
+    if (key === filter) {
+      btn.classList.add('active');
+      btn.style.background = '#2563eb';
+      btn.style.color = '#ffffff';
+      btn.style.borderColor = '#2563eb';
+    } else {
+      btn.classList.remove('active');
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }
+  });
+  document.querySelectorAll('[data-chart]').forEach(el => {
+    el.style.display = el.getAttribute('data-chart') === filter ? '' : 'none';
+  });
+  setTimeout(() => allCharts.forEach(c => c.resize()), 50);
+}
+
+Object.entries(filterBtns).forEach(([key, btn]) => {
+  btn.onclick = () => applyFilter(key);
+});
+
+setTimeout(() => applyFilter('pieza'), 100);
+
+// ─── MINIMIZE ──────────────────────────────────────────────────────────────
+const minimizeBtn = document.getElementById('minimizeBtn');
+minimizeBtn.onclick = () => {
+  isMinimized = !isMinimized;
+  minimizeBtn.textContent = isMinimized ? '＋ Expandir' : '— Minimizar';
+  minimizeBtn.style.background = isMinimized ? '#2563eb' : 'transparent';
+  minimizeBtn.style.color = isMinimized ? '#ffffff' : '#6b7280';
+  minimizeBtn.style.borderColor = isMinimized ? '#2563eb' : '#6b7280';
+  document.body.style.zoom = isMinimized ? '0.6' : '1';
+  const fontSize = isMinimized ? '1.4rem' : '';
+  document.querySelectorAll('.fam-label, .chart-title, .phase-header').forEach(t => t.style.fontSize = fontSize);
+  allCharts.forEach(chart => {
+    const sz = isMinimized ? 18 : 11;
+    const txSz = isMinimized ? 18 : 12;
+    chart.data.datasets.forEach(ds => { if (ds.datalabels) ds.datalabels.font = { family:'DM Sans', size:sz, weight:'700' }; });
+    if (chart.options.scales?.x?.ticks) chart.options.scales.x.ticks.font = { family:'DM Sans', size:txSz, weight:'700' };
+    if (chart.options.plugins?.legend?.labels) chart.options.plugins.legend.labels.font = { family:'DM Sans', size:txSz, weight:'700' };
+    chart.update();
+  });
+};
+</script>
+</body>
+</html>
